@@ -1,11 +1,14 @@
+# Author 杨炜光
+# 华南农业大学国家精准农业航空中心
 import os
 import rasterio
 from rasterio.plot import show
 from rasterio.warp import calculate_default_transform, reproject
 from rasterio.enums import Resampling
 import PySimpleGUI as sg
+os.environ['PROJ_LIB'] = r'./proj'
 
-def convert_tif(path,upscale_factor, dst_crs = 'EPSG:4326'):
+def convert_tif(path,upscale_factor, window,dst_crs = 'EPSG:4326'):
     with rasterio.open(path) as src:
         transform, width, height = calculate_default_transform(
             src.crs, dst_crs, src.width, src.height, *src.bounds)
@@ -19,6 +22,7 @@ def convert_tif(path,upscale_factor, dst_crs = 'EPSG:4326'):
 
         if src.crs.to_string() != dst_crs:
             print("当前坐标系为：{}，需转为：{}".format(src.crs.to_string(),dst_crs))
+            window.Refresh()
             path = path.replace('dsm.tif','_reproject_dsm.tif')
             if os.path.exists(path):
                 os.remove(path)
@@ -33,7 +37,7 @@ def convert_tif(path,upscale_factor, dst_crs = 'EPSG:4326'):
                         dst_crs=dst_crs,
                         resampling=Resampling.nearest)
             print("坐标系转换完成！")
-            
+            window.Refresh()
         with rasterio.open(path) as dataset:
             data = dataset.read(
                 out_shape=(
@@ -65,25 +69,35 @@ def convert_tif(path,upscale_factor, dst_crs = 'EPSG:4326'):
     return path
 
 def gui():
-    layout = [
-        [sg.FileBrowse('选择待转换图片', key='file', target='file'), sg.Button('开始'), sg.Button('关闭')],
-        [sg.Text('采样比例为:', font=("宋体", 10)), sg.InputText(size=(20, 1),key='upscale_factor',font=("宋体", 10))],
-        [sg.Output(size=(50, 10))]
-    ]
+    try:
+        layout = [
+            [sg.FileBrowse('选择待转换图片', key='file', target='file'), sg.Button('开始'), sg.Button('关闭')],
+            [sg.Text('采样比例为:', font=("宋体", 10)), sg.InputText(size=(20, 1),key='upscale_factor',font=("宋体", 10))],
+            [sg.Text('目标坐标系:', font=("宋体", 10)),sg.Combo(['WGS84', 'WGS 84 / UTM zone 45N'], key='proj_crs', default_value='WGS84', size=(21, 1))],
+            [sg.Output(size=(50, 10))]
+        ]
 
-    window = sg.Window('dsm压缩及坐标系转换-FOR DJI', layout, font=("宋体", 10), default_element_size=(50, 1), icon='NPAAC.ico')
-    while True:
-        event, values = window.read()
-        if event in (None, '关闭'):  # 如果用户关闭窗口或点击`关闭`
-            print('关闭')
-            break
-        if event == '开始':
-            print('开始')
-            path = values['file']
-            upscale_factor = float(values['upscale_factor'])
-            result = convert_tif(path,upscale_factor)
-            print(result)
-            print('重采样完成!')
-            
+        window = sg.Window('dsm压缩及坐标系转换-FOR DJI', layout, font=("宋体", 10), default_element_size=(50, 1), icon='NPAAC.ico')
+        while True:
+            event, values = window.read()
+            if event in (None, '关闭'):  # 如果用户关闭窗口或点击`关闭`
+                print('关闭')
+                window.Refresh()
+                break
+            if event == '开始':
+                print('开始')
+                window.Refresh()
+                path = values['file']
+                upscale_factor = float(values['upscale_factor'])
+                if values['proj_crs']=='WGS84':
+                    dst_crs = 'EPSG:4326'
+                elif values['proj_crs']=='WGS 84 / UTM zone 45N':
+                    dst_crs = 'EPSG:32645'
+                result = convert_tif(path,upscale_factor,window,dst_crs)
+                print(result)
+                print('重采样完成!')
+                window.Refresh()
+    except Exception as e:
+        print(e)
 if __name__ == '__main__':
     gui()
