@@ -1,5 +1,6 @@
 # Author 杨炜光
 # 华南农业大学国家精准农业航空中心
+# 用于转换DSM的坐标系及降低DSM文件的大小，用于导入控制器进行仿地飞行
 import os
 import rasterio
 from rasterio.plot import show
